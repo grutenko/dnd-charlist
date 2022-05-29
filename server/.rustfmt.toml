@@ -1,0 +1,7 @@
+brace_style = "AlwaysNextLine"
+imports_layout = "Vertical"
+max_width = 80
+imports_granularity="Crate"
+normalize_comments = true
+group_imports = "StdExternalCrate"
+struct_field_align_threshold = 20

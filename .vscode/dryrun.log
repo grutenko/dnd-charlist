@@ -1,0 +1,12 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/aleksejfedorenko/Projects/dnd-charlist'
+cd server \
+	&& cargo build --profile=release --target=aarch64-apple-darwin \
+	&& cp target/aarch64-apple-darwin/release/server dist/server-aarch64-apple-darwin
+ 
+cd client \
+	&& yarn tauri build --target=aarch64-apple-darwin --bundles=dmg \
+	&& mkdir -p -- ../dist \
+	&& mv src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg ../dist
+make: Leaving directory `/Users/aleksejfedorenko/Projects/dnd-charlist'
+ 

@@ -1,0 +1,249 @@
+syntax = "proto3";
+
+package dndch.storage;
+
+
+message FieldValue {
+    oneof field_value_union {
+        string text = 1;
+        int64 integer = 2;
+        float real = 3;
+        bytes blob = 4;
+    }
+}
+
+message ObjectId {
+    string kind = 1;
+    int64 id = 2;
+}
+
+message Object {
+    ObjectId id = 1;
+    message FieldEntry {
+        string name = 1;
+        optional FieldValue value = 2;
+    }
+    repeated FieldEntry fields = 3;
+}
+
+message FieldEntry {
+    string name = 1;
+    FieldValue value = 2;
+}
+
+enum LinkType {
+    /* When using free references, deleting the parent will not delete the child. */
+    FREE = 0;
+    /* Using strong references the other way around, deletes all child objects following the parent. */
+    STRICT = 1;
+}
+
+message Link {
+    ObjectId parent = 1;
+    ObjectId child = 2;
+    LinkType type = 3;
+    optional bytes meta = 4;
+}
+
+enum MemberRole {
+    GAME_MASTER = 0;
+    PLAYER = 1;
+}
+
+message Member {
+    MemberRole role = 1;
+    optional int64 character_id = 3;
+    string name = 2;
+}
+
+message AuthRequest {
+    Member member = 1;
+}
+
+message AuthResponse {
+    uint64 member_id = 1;
+}
+
+message CreateObjectRequest {
+    uint64 member_id = 1;
+    string kind = 2;
+    /* Create object and link with parent object using target link type.
+       When using this field, the returned message will contain the field "link" */
+    message ParentRelation {
+        ObjectId parent = 1;
+        LinkType link_type = 2;
+        /* TODO: Add meta data */
+    };
+    optional ParentRelation relation = 3;
+    repeated FieldEntry values = 4;
+}
+
+message CreateObjectResponse {
+    ObjectId id = 1;
+    optional Link link = 2;
+}
+
+message LinkObjectsRequest {
+    uint64 member_id = 1;
+    ObjectId parent = 2;
+    ObjectId child = 3;
+    LinkType type = 4;
+    optional bytes meta = 5;
+}
+
+message LinkObjectsResponse {
+    uint64 link_id = 1;
+}
+
+message UnlinkObjectsRequest {
+    uint64 member_id = 1;
+    ObjectId parent = 2;
+    ObjectId child = 3;
+}
+
+message DropObjectRequest {
+    uint64 member_id = 1;
+    ObjectId id = 2;
+}
+
+message DropObjectResponse {
+    repeated ObjectId deleted_ids = 1;
+}
+
+message Cond {
+    message And {
+        Cond left = 1; Cond right = 2;
+    }
+    message Or {
+        Cond left = 1; Cond right = 2;
+    }
+    message Common {
+        string field = 1;
+        enum Op { Eq = 0; Neq = 1; Gt = 2; Lt = 3; Gtq = 4; Ltq = 5; }
+        Op op = 2;
+        FieldValue value = 3;
+    }
+    message In {
+        string field = 1;
+        repeated FieldValue values = 2;
+        bool invert = 3;
+    }
+    message Like {
+        string field = 1;
+        string pattern = 2;
+        bool invert = 3;
+    }
+    oneof cond_type {
+        And and = 1;
+        Or or = 2;
+        Common common = 3;
+        In in = 4;
+        Like like = 5;
+    }
+}
+
+message FindObjectsRequest {
+    uint64 member_id = 1;
+    string kind = 2;
+    optional ObjectId child_of = 3;
+    message Slice {
+        uint64 limit = 1;
+        optional uint64 offset = 2;
+    }
+    optional Slice slice = 4;
+    optional Cond cond = 5;
+}
+
+message FindObjectsResponse {
+    message ResponseEntry {
+        Object object = 1;
+        optional Link link = 2;
+    }
+    repeated ResponseEntry entries = 1;
+}
+
+message Event {
+    message Join {
+        Member member = 1;
+    }
+    message Leave {
+        Member member = 1;
+    }
+    message CreateObject {
+        ObjectId id = 1;
+    }
+    message LinkObjects {
+        ObjectId parent = 1;
+        ObjectId child = 2;
+    }
+    message UnlinkObjects {
+        ObjectId id0 = 1;
+        ObjectId id1 = 2;
+    }
+    message DropObject {
+        ObjectId id = 1;
+    }
+    message SetObjectField {
+        ObjectId id = 1;
+        string name = 2;
+        FieldValue value = 3;
+    }
+    message EventKind {
+        oneof event_kind {
+            CreateObject create_object = 1;
+            LinkObjects link_objects = 2;
+            UnlinkObjects UnlinkObjects = 3;
+            DropObject drop_object = 4;
+            SetObjectField set_object_field = 5;
+            Join join = 6;
+            Leave leave = 7;
+        }
+    }
+    Member initiator = 1;
+    EventKind event_kind = 2;
+}
+
+message SetObjectFieldsRequest {
+    uint64 member_id = 1;
+    ObjectId id = 2;
+    repeated FieldEntry fields = 3;
+}
+
+message LeaveRequest {
+    uint64 member_id = 1;
+}
+
+message CharactersListResponse {
+    message CharacterEntry {
+        uint64 id = 1;
+        string name = 2;
+        optional Member member = 3;
+    }
+    repeated CharacterEntry characters = 1;
+}
+
+message Empty {}
+
+service Storage {
+    rpc characters_list(Empty) returns (CharactersListResponse) {}
+
+    /* Authorize user in server as game master or player.
+       Returns the member id that is used on every request to this service */
+    rpc auth(AuthRequest) returns (AuthResponse) {}
+
+    rpc create_object(CreateObjectRequest) returns (CreateObjectResponse) {}
+
+    rpc set_object_fields(SetObjectFieldsRequest) returns (Empty) {}
+
+    rpc link_objects(LinkObjectsRequest) returns (LinkObjectsResponse) {}
+
+    rpc unlink_objects(UnlinkObjectsRequest) returns (Empty) {}
+
+    rpc drop_object(DropObjectRequest) returns (Empty) {}
+
+    rpc find_objects(FindObjectsRequest) returns (FindObjectsResponse) {}
+
+    rpc watch(Empty) returns (stream Event) {}
+
+    rpc leave(LeaveRequest) returns (Empty) {}
+}

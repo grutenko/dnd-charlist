@@ -1,0 +1,29 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "server"
+
+[dependencies]
+prost = "0.10"
+clap = {version = "3.1.8", features = ["derive"]}
+flexi_logger = "0.22.3"
+log = "0.4.16"
+refinery = { version = "0.8.4", features = ["rusqlite"] }
+rusqlite = { version = "0.26.3", features = ["bundled", "blob"] }
+tonic = "0.7.2"
+serde = { version = "1.0.137", features = ["derive"] }
+rmp-serde = "1.1.0"
+crossbeam-channel = "0.5.4"
+tokio-stream = "0.1.8"
+tokio = { version = "1.0", features = [ "rt-multi-thread"] }
+
+[dev-dependencies]
+tempdir = "0.3.7"
+random-string = "1.0.0"
+lazy_static = "1.4.0"
+
+[build-dependencies]
+tonic-build = { version = "0.7.2", features = ["prost"] }
